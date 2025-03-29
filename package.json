@@ -1,0 +1,33 @@
+{
+  "name": "tp0",
+  "version": "1.0.0",
+  "description": "1. Go to your GitHub repository. 2. Click on `Settings`. 3. In the left sidebar, click on `Secrets and variables` > `Actions`. 4. Click on `New repository secret`. 5. Add the following secrets:    - `AWS_ACCESS_KEY_ID`: Your AWS Access Key ID.    - `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Access Key.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtraore-selin/terraform-aws.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mtraore-selin/terraform-aws/issues"
+  },
+  "homepage": "https://github.com/mtraore-selin/terraform-aws#readme",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/mongoose": "^5.11.96",
+    "@types/node": "^22.13.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  }
+}
