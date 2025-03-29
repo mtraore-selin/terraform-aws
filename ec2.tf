@@ -12,9 +12,6 @@
 #   }
 # }
 
-provider "aws" {
-  region = "eu-north-1"
-}
 
 resource "aws_iam_role" "ssm_role" {
   name = "ssm_role"
