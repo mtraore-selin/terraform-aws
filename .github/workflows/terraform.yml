@@ -35,14 +35,16 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Install AWS CLI
-        run: sudo apt-get install -y awscli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 2 #
 
       - name: Deploy to EC2 using SSM
         env:
           INSTANCE_ID: ${{ steps.terraform-apply.outputs.instance_id }}
         run: |
           aws ssm send-command \
-            --instance-ids $INSTANCE_ID \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy application" \
-            --parameters commands=["cd /home/ec2-user","git clone https://github.com/mtraore-selin/terraform-aws","cd terraform-aws","npm install","npx tsc","pm2 restart dist/index.js"]
+          --instance-ids $INSTANCE_ID \
+          --document-name "AWS-RunShellScript" \
+          --comment "Deploy application" \
+          --parameters commands=["cd /home/ec2-user","git clone https://github.com/mtraore-selin/terraform-aws","cd terraform-aws","npm install","npx tsc","pm2 restart dist/index.js"]

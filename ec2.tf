@@ -14,8 +14,7 @@
 
 
 resource "aws_iam_role" "ssm_role" {
-  name = "ssm_role"
-
+  name = "ssm_role_${random_id.unique_suffix.hex}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -30,14 +29,18 @@ resource "aws_iam_role" "ssm_role" {
   })
 }
 
+resource "random_id" "unique_suffix" {
+  byte_length = 4
+}
+
 resource "aws_iam_role_policy_attachment" "ssm_policy_attach" {
   role       = aws_iam_role.ssm_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_instance" "web" {
-  ami                  = "ami-0c1ac8a41498c1a9c"
-  instance_type        = "t3.micro"
+  ami           = "ami-0c1ac8a41498c1a9c"
+  instance_type = "t3.micro"
   iam_instance_profile = aws_iam_instance_profile.ssm_instance_profile.name
 
   tags = {
@@ -57,7 +60,7 @@ resource "aws_instance" "web" {
 }
 
 resource "aws_iam_instance_profile" "ssm_instance_profile" {
-  name = "ssm_instance_profile"
+  name = "ssm_instance_profile_${random_id.unique_suffix.hex}"
   role = aws_iam_role.ssm_role.name
 }
 
