@@ -25,16 +25,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_ACCESS_REGION }}
 
-      - name: Terraform Format
+      - name: Terraform format
         run: terraform fmt -recursive
 
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan
-
       - name: Terraform Apply
+        id: terraform-apply
         run: terraform apply -auto-approve
 
       - name: Install AWS CLI
@@ -42,45 +40,82 @@ jobs:
         with:
           version: 2
 
-      - name: Get Instance ID
-        id: get-instance-id
-        run: echo "INSTANCE_ID=$(terraform output -raw instance_id)" >> $GITHUB_ENV
+      - name: Get Instance ID and Status
+        id: get-instance
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=baragnini" \
+            --query "Reservations[].Instances[].InstanceId" \
+            --output text)
+
+          INSTANCE_STATE=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query "Reservations[].Instances[].State.Name" \
+            --output text)
+
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+          echo "instance_state=$INSTANCE_STATE" >> $GITHUB_OUTPUT
+          echo "Instance ID: $INSTANCE_ID, State: $INSTANCE_STATE"
+
+      - name: Verify Instance Status
+        if: steps.get-instance.outputs.instance_state != 'running'
+        run: |
+          echo "Instance is not running (current state: ${{ steps.get-instance.outputs.instance_state }})"
+          exit 1
+
+      - name: Check SSM Connection
+        run: |
+          aws ssm describe-instance-information \
+            --instance-information-filter-list key=InstanceIds,valueSet=${{ steps.get-instance.outputs.instance_id }} \
+            --query "InstanceInformationList[].PingStatus" \
+            --output text
+
+          # Wait for SSM to be ready if needed
+          for i in {1..10}; do
+            STATUS=$(aws ssm describe-instance-information \
+              --instance-information-filter-list key=InstanceIds,valueSet=${{ steps.get-instance.outputs.instance_id }} \
+              --query "InstanceInformationList[].PingStatus" \
+              --output text)
+            
+            if [ "$STATUS" = "Online" ]; then
+              echo "SSM agent is ready"
+              break
+            fi
+            echo "Waiting for SSM agent... ($i/10)"
+            sleep 10
+          done
+
+          if [ "$STATUS" != "Online" ]; then
+            echo "SSM agent not ready after 100 seconds"
+            exit 1
+          fi
 
       - name: Deploy to EC2 using SSM
-        env:
-          INSTANCE_ID: ${{ env.INSTANCE_ID }}
         run: |
-          aws ssm send-command \
-            --instance-ids $INSTANCE_ID \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy application" \
-            --parameters commands=[
-              "cd /home/ec2-user",
-              "git clone https://github.com/mtraore-selin/terraform-aws",
-              "cd terraform-aws",
-              "npm install",
-              "npx tsc",
-              "pm2 restart dist/index.js"
-            ]
+          # Create a temporary script file
+          cat << 'EOF' > deploy.sh
+          #!/bin/bash
+          set -e  # Exit on error
 
-      - name: Check SSM Command Status
-        run: |
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids $INSTANCE_ID \
+          mkdir -p /home/ec2-user/app
+          cd /home/ec2-user/app
+          rm -rf terraform-aws || true
+          git clone https://github.com/mtraore-selin/terraform-aws
+          cd terraform-aws
+          npm install
+          npx tsc
+          pm2 delete all || true
+          pm2 start dist/index.js
+          pm2 save
+          pm2 startup
+          EOF
+
+          # Upload and execute the script
+          aws ssm send-command \
+            --instance-ids ${{ steps.get-instance.outputs.instance_id }} \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy application" \
-            --parameters commands=[
-              "cd /home/ec2-user",
-              "git clone https://github.com/mtraore-selin/terraform-aws",
-              "cd terraform-aws",
-              "npm install",
-              "npx tsc",
-              "pm2 restart dist/index.js"
-            ] \
-            --query "Command.CommandId" \
-            --output text)
-          aws ssm get-command-invocation \
-            --command-id $COMMAND_ID \
-            --instance-id $INSTANCE_ID \
-            --query "Status" \
-            --output text
+            --parameters '{"commands": ["$(cat deploy.sh | tr '\n' ';')"]}' \
+            --cloud-watch-output-config '{"CloudWatchLogGroupName":"SSMCommandLogs","CloudWatchOutputEnabled":true}' \
+            --comment "Deploy application"
+
+          echo "Deployment command sent successfully"
