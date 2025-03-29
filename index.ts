@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+//MONGO_CONNECTION_STRING=mongodb+srv://gmdt8589:Mg020185awa89..@cluster0.obnac.mongodb.net/notes
 
 // Load environment variables from a .env file into process.env
 dotenv.config();
@@ -10,7 +11,9 @@ const app = express();
 app.use(express.json());
 
 // MongoDB connection
-const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/todo-app";
+const mongoURI =
+  process.env.MONGO_URI ||
+  "mongodb+srv://gmdt8589:Mg020185awa89..@cluster0.obnac.mongodb.net/todo"; // put this in the config (github variable)
 mongoose
   .connect(mongoURI)
   .then(() => console.log("MongoDB connected"))
@@ -33,6 +36,10 @@ const Todo = mongoose.model<ITodo>("Todo", todoSchema);
 app.get("/todos", async (req, res) => {
   const todos = await Todo.find();
   res.json(todos);
+});
+
+app.get("/", async (req, res) => {
+  res.send("Hello, World!");
 });
 
 app.post("/todos", async (req, res) => {

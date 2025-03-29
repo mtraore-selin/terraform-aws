@@ -76,3 +76,8 @@ jobs:
 - **Security**: Ensure that your AWS credentials have the minimum required permissions to create the EC2 instance.
 
 With this setup, every time you push changes to your default branch, the GitHub Actions workflow will run and apply your Terraform configuration to create the EC2 instance.
+
+### TODO: Implement
+
+- \*\* before applying, destroy
+- \*\* add mongodb connection string to github secret
